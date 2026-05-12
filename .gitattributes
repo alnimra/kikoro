@@ -1,5 +1,6 @@
 packages/app/app.config.js merge=ours
 packages/app/eas.json merge=ours
+packages/app/.eas/workflows/testflight-on-main.yml merge=ours
 packages/app/assets/images/icon.png merge=ours
 packages/app/assets/images/splash-icon.png merge=ours
 packages/app/assets/images/favicon.png merge=ours

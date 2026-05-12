@@ -9,6 +9,7 @@ Kikoro is a kikoro-themed iOS app that speaks paseo's protocol. Backend (daemon,
 ## Important — read this before trying to use it
 
 You cannot run kikoro standalone. It requires:
+
 - A running paseo daemon (install from [getpaseo/paseo](https://github.com/getpaseo/paseo))
 - Your own Apple Developer account (for TestFlight)
 - Your own Expo account (for EAS builds)

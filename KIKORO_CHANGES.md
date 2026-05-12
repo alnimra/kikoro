@@ -6,17 +6,17 @@ This is the canonical list of how kikoro diverges from upstream `getpaseo/paseo`
 
 ### App identity (packages/app/app.config.js)
 
-| Field | Upstream paseo | Kikoro |
-|-------|----------------|--------|
-| variant `production` name | `"Paseo"` | `"Kikoro"` |
-| variant `production` packageId | `"sh.paseo"` | `"com.alnim.kikoro"` |
-| variant `development` name | `"Paseo Debug"` | `"Kikoro Debug"` |
-| variant `development` packageId | `"sh.paseo.debug"` | `"com.alnim.kikoro.debug"` |
-| `expo.slug` | `"voice-mobile"` | `"codex-remote"` (preserves kikoro Expo project linkage) |
-| `expo.scheme` | `"paseo"` | `"kikoro"` |
-| `expo.updates.url` | `https://u.expo.dev/0e7f65ce-...` | `https://u.expo.dev/e65394bd-...` |
-| `expo.extra.eas.projectId` | `"0e7f65ce-..."` | `"e65394bd-110f-4075-9a8b-7366fd6a2f0f"` |
-| `expo.owner` | `"getpaseo"` | `"alnim"` |
+| Field                           | Upstream paseo                    | Kikoro                                                   |
+| ------------------------------- | --------------------------------- | -------------------------------------------------------- |
+| variant `production` name       | `"Paseo"`                         | `"Kikoro"`                                               |
+| variant `production` packageId  | `"sh.paseo"`                      | `"com.alnim.kikoro"`                                     |
+| variant `development` name      | `"Paseo Debug"`                   | `"Kikoro Debug"`                                         |
+| variant `development` packageId | `"sh.paseo.debug"`                | `"com.alnim.kikoro.debug"`                               |
+| `expo.slug`                     | `"voice-mobile"`                  | `"codex-remote"` (preserves kikoro Expo project linkage) |
+| `expo.scheme`                   | `"paseo"`                         | `"kikoro"`                                               |
+| `expo.updates.url`              | `https://u.expo.dev/0e7f65ce-...` | `https://u.expo.dev/e65394bd-...`                        |
+| `expo.extra.eas.projectId`      | `"0e7f65ce-..."`                  | `"e65394bd-110f-4075-9a8b-7366fd6a2f0f"`                 |
+| `expo.owner`                    | `"getpaseo"`                      | `"alnim"`                                                |
 
 ### Build pipeline (packages/app/eas.json)
 
@@ -24,15 +24,29 @@ This is the canonical list of how kikoro diverges from upstream `getpaseo/paseo`
 - **Added `testflight` submit profile** — `ios.ascAppId: 6764368884` (kikoro's App Store Connect app ID).
 - **Changed `production` submit ios.ascAppId** — `6758887924` (paseo's) → `6764368884` (kikoro's). User's Apple Developer account doesn't have access to paseo's ASC app, so the production profile would fail without this swap.
 
+### EAS Workflow trigger surface
+
+**Added `packages/app/.eas/workflows/testflight-on-main.yml`** — fires on every push to `main` that touches the iOS app or its workspace deps (path-filtered). Builds with the `testflight` profile, then auto-submits to TestFlight via the `submit_ios` job. Matches the old kikoro CI pattern of "push to main → TestFlight build queued."
+
+To skip a build: push to a feature branch instead of main; merge later when you do want a build. Manual override: `workflow_dispatch` from EAS dashboard.
+
+**Inherited paseo workflows that are NOT relevant to a personal kikoro fork** (will fire if you push their tags; `release-mobile.yml` builds for production+App Store Review submission, `deploy-app.yml` deploys to paseo's Cloudflare with paseo's npm scope and will fail):
+
+- `.github/workflows/release-mobile.yml` — fires on `v*` tags (production build + App Store Review). Avoid pushing `v*` tags casually.
+- `.github/workflows/deploy-app.yml` — fires on `v*` or `app-v*` tags (Cloudflare web deploy). Will fail on fork (uses paseo's `@boudra` npm scope and paseo's Cloudflare account).
+- `.github/workflows/deploy-relay.yml`, `desktop-release.yml`, `desktop-rollout.yml`, `deploy-website.yml` — paseo's other deploy targets, mostly inert on the fork unless triggered.
+
+These are kept as inherited code (no merge cost). They're inert until you push a matching tag. If they become annoying we can delete them in a future commit.
+
 ### Assets (packages/app/assets/images/)
 
-| File | Source |
-|------|--------|
-| `icon.png` | Kikoro icon (replaces paseo) |
-| `splash-icon.png` | Kikoro splash (replaces paseo) |
-| `favicon.png` | Kikoro favicon (replaces paseo) |
-| `android-icon-foreground.png` | Kikoro adaptive-icon (replaces paseo) |
-| `kikoro-mark.svg`, `kikoro-header-mark.png` | Kikoro brand additions (new files) |
+| File                                        | Source                                |
+| ------------------------------------------- | ------------------------------------- |
+| `icon.png`                                  | Kikoro icon (replaces paseo)          |
+| `splash-icon.png`                           | Kikoro splash (replaces paseo)        |
+| `favicon.png`                               | Kikoro favicon (replaces paseo)       |
+| `android-icon-foreground.png`               | Kikoro adaptive-icon (replaces paseo) |
+| `kikoro-mark.svg`, `kikoro-header-mark.png` | Kikoro brand additions (new files)    |
 
 The paseo favicon variants (`favicon-dark-attention.png`, etc.) are kept as-is since kikoro doesn't have equivalents yet.
 
