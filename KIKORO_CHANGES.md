@@ -24,6 +24,12 @@ This is the canonical list of how kikoro diverges from upstream `getpaseo/paseo`
 - **Added `testflight` submit profile** — `ios.ascAppId: 6764368884` (kikoro's App Store Connect app ID).
 - **Changed `production` submit ios.ascAppId** — `6758887924` (paseo's) → `6764368884` (kikoro's). User's Apple Developer account doesn't have access to paseo's ASC app, so the production profile would fail without this swap.
 
+### Versioning (packages/app/package.json `version` field)
+
+Paseo and kikoro ride independent version lines. Paseo's is `0.x.y` (currently `0.1.75`); kikoro continues the old kikoro `1.x.y` line (started at `1.0.0`, currently `1.0.1`). The version shown in TestFlight + App Store comes from `packages/app/package.json` via `app.config.js`'s `version: pkg.version` line; `eas.json` stores only the build number remotely (`appVersionSource: "remote"`).
+
+**Upstream-merge gotcha:** `packages/app/package.json` is NOT in `.gitattributes` `merge=ours` — we want to inherit paseo's dependency updates from this file (`react-native`, `expo-router`, etc.). The downside: a paseo version bump will overwrite kikoro's `version` field on merge. The smoke script (`scripts/smoke.sh`) catches this — it fails loudly if the version isn't on the `1.x` line. After every upstream merge, re-bump the version manually if smoke complains.
+
 ### EAS Workflow trigger surface
 
 **Added `packages/app/.eas/workflows/testflight-on-main.yml`** — fires on every push to `main` that touches the iOS app or its workspace deps (path-filtered). Builds with the `testflight` profile, then auto-submits to TestFlight via the `submit_ios` job. Matches the old kikoro CI pattern of "push to main → TestFlight build queued."

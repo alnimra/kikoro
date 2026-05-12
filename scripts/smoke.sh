@@ -30,6 +30,11 @@ grep -q '"testflight"' "$EAS"                                        || fail "no
 grep -q '6764368884' "$EAS"                                          || fail "ascAppId is not kikoro's (6764368884)"
 ok "$EAS kikoro values intact"
 
+echo "[smoke] checking packages/app/package.json version is on the kikoro 1.x line..."
+APP_PKG=packages/app/package.json
+grep -E '"version": *"1\.[0-9]+\.[0-9]+"' "$APP_PKG" >/dev/null      || fail "packages/app/package.json version not on kikoro's 1.x line — paseo upstream may have overwritten (likely 0.1.x). Bump back to 1.0.x."
+ok "packages/app/package.json on kikoro 1.x line"
+
 echo "[smoke] checking assets..."
 test -f "$ASSETS/icon.png"                                           || fail "icon.png missing"
 test -f "$ASSETS/splash-icon.png"                                    || fail "splash-icon.png missing"
