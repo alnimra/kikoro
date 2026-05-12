@@ -7,6 +7,10 @@ name: TestFlight on main push
 #
 # To skip a build for a given commit, push to a feature branch and merge later;
 # main pushes always trigger.
+#
+# Verified auto-triggering 2026-05-13 after fixing Expo project base directory
+# from `/` to `packages/app` (kikoro is a paseo monorepo; workflows live at
+# packages/app/.eas/workflows/ not at repo root).
 
 on:
   push:
