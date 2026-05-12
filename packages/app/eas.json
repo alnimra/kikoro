@@ -31,16 +31,30 @@
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease -x lint -x lintVitalAnalyzeRelease -x lintVitalRelease -x generateReleaseLintModel -x generateReleaseLintVitalModel"
       }
+    },
+    "testflight": {
+      "extends": "production",
+      "channel": "staging",
+      "distribution": "store",
+      "ios": {
+        "image": "latest",
+        "autoIncrement": true
+      }
     }
   },
   "submit": {
     "production": {
       "ios": {
-        "ascAppId": "6758887924"
+        "ascAppId": "6764368884"
       },
       "android": {
         "track": "production",
         "releaseStatus": "completed"
+      }
+    },
+    "testflight": {
+      "ios": {
+        "ascAppId": "6764368884"
       }
     }
   }
