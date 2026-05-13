@@ -27,7 +27,16 @@ describe("session-store subscription usage", () => {
     const snapshot: SubscriptionUsageSnapshot = {
       status: "ok",
       capturedAt: "2026-05-13T05:00:00Z",
-      providers: [{ provider: "codex", sessionCostUsd: 49.49 }],
+      providers: [
+        {
+          provider: "codex",
+          source: "codex-cli",
+          identity: { accountEmail: "m@ray.vin", loginMethod: "pro", providerId: "codex" },
+          primary: { usedPercent: 0, windowMinutes: 300, resetsAt: "2026-05-13T19:20:45Z" },
+          secondary: { usedPercent: 0, windowMinutes: 10080 },
+          credits: { remaining: 0 },
+        },
+      ],
       cliVersion: "0.25.1",
     };
     useSessionStore.getState().updateSubscriptionUsage(serverId, snapshot);
@@ -39,7 +48,16 @@ describe("session-store subscription usage", () => {
     const snapshot: SubscriptionUsageSnapshot = {
       status: "ok",
       capturedAt: "2026-05-13T05:00:00Z",
-      providers: [{ provider: "codex", sessionCostUsd: 49.49 }],
+      providers: [
+        {
+          provider: "codex",
+          source: "codex-cli",
+          identity: { accountEmail: "m@ray.vin", loginMethod: "pro", providerId: "codex" },
+          primary: { usedPercent: 0, windowMinutes: 300, resetsAt: "2026-05-13T19:20:45Z" },
+          secondary: { usedPercent: 0, windowMinutes: 10080 },
+          credits: { remaining: 0 },
+        },
+      ],
       cliVersion: "0.25.1",
     };
     useSessionStore.getState().updateSubscriptionUsage(serverId, snapshot);

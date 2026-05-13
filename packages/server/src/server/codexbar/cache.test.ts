@@ -30,10 +30,12 @@ describe("codexbar cache", () => {
       providers: [
         {
           provider: "codex",
-          sessionCostUsd: 49.49,
-          sessionTokens: 120190126,
-          last30DaysCostUsd: 2944.25,
-          last30DaysTokens: 7788672189,
+          source: "codex-cli",
+          cliVersion: "0.130.0",
+          identity: { accountEmail: "m@ray.vin", loginMethod: "pro", providerId: "codex" },
+          primary: { usedPercent: 0, windowMinutes: 300, resetsAt: "2026-05-13T19:20:45Z" },
+          secondary: { usedPercent: 0, windowMinutes: 10080 },
+          credits: { remaining: 0 },
         },
       ],
       cliVersion: "0.25.1",

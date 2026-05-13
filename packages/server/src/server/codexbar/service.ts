@@ -6,8 +6,8 @@ import {
 } from "../../shared/messages.js";
 
 import { readCachedSnapshot, writeCachedSnapshot } from "./cache.js";
-import { fetchCodexbarCost, resolveCodexbarBinaryPath, type CodexbarCliResult } from "./cli.js";
-import type { CodexbarCostProviderRaw } from "./schemas.js";
+import { fetchCodexbarUsage, resolveCodexbarBinaryPath, type CodexbarCliResult } from "./cli.js";
+import type { CodexbarUsageProviderRaw } from "./schemas.js";
 
 export interface CodexbarServiceOptions {
   paseoHome: string;
@@ -16,14 +16,16 @@ export interface CodexbarServiceOptions {
   pollIntervalMs?: number;
   cliTimeoutMs?: number;
   binaryPath?: string;
-  // Test seam: replaces fetchCodexbarCost.
-  fetchFn?: typeof fetchCodexbarCost;
+  // Test seam: replaces fetchCodexbarUsage.
+  fetchFn?: typeof fetchCodexbarUsage;
   // Test seam: replaces Date.now in capturedAt timestamps.
   now?: () => Date;
 }
 
 const DEFAULT_POLL_INTERVAL_MS = 60_000;
-const DEFAULT_CLI_TIMEOUT_MS = 30_000;
+// `codexbar usage` hits remote APIs (codex web dashboard, claude.ai API);
+// 60s is generous but cheap relative to the 60s poll cadence.
+const DEFAULT_CLI_TIMEOUT_MS = 60_000;
 
 export class CodexbarService {
   private readonly options: Required<
@@ -31,7 +33,7 @@ export class CodexbarService {
   > & {
     logger: Logger;
     broadcast: (snapshot: SubscriptionUsageSnapshot) => void;
-    fetchFn: typeof fetchCodexbarCost;
+    fetchFn: typeof fetchCodexbarUsage;
     now: () => Date;
   };
   private latestSnapshot: SubscriptionUsageSnapshot | null = null;
@@ -47,7 +49,7 @@ export class CodexbarService {
       pollIntervalMs: options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS,
       cliTimeoutMs: options.cliTimeoutMs ?? DEFAULT_CLI_TIMEOUT_MS,
       binaryPath: options.binaryPath ?? resolveCodexbarBinaryPath() ?? "codexbar",
-      fetchFn: options.fetchFn ?? fetchCodexbarCost,
+      fetchFn: options.fetchFn ?? fetchCodexbarUsage,
       now: options.now ?? (() => new Date()),
     };
   }
@@ -199,25 +201,59 @@ export function buildSnapshot(
   };
 }
 
-function normalizeProvider(raw: CodexbarCostProviderRaw): SubscriptionProviderCost {
-  const totals = raw.totals
-    ? {
-        totalCost: raw.totals.totalCost,
-        totalTokens: raw.totals.totalTokens,
-        inputTokens: raw.totals.inputTokens,
-        outputTokens: raw.totals.outputTokens,
-        cacheReadTokens: raw.totals.cacheReadTokens,
-        cacheCreationTokens: raw.totals.cacheCreationTokens,
-      }
-    : undefined;
+// Maps one entry of `codexbar usage --format json --provider all` to the
+// broadcast shape. Tolerates both success (`usage`) and per-provider error
+// (`error`) entries. Drops the deprecated dollar fields entirely; old v1.1.0
+// clients reading the wire will see them as undefined.
+function normalizeIdentity(
+  usage: CodexbarUsageProviderRaw["usage"],
+): SubscriptionProviderCost["identity"] {
+  if (usage?.identity) {
+    return {
+      accountEmail: usage.identity.accountEmail ?? usage.accountEmail,
+      loginMethod: usage.identity.loginMethod ?? usage.loginMethod,
+      providerId: usage.identity.providerID,
+    };
+  }
+  if (usage?.loginMethod || usage?.accountEmail) {
+    return {
+      accountEmail: usage.accountEmail,
+      loginMethod: usage.loginMethod,
+    };
+  }
+  return undefined;
+}
+
+function normalizeProvider(raw: CodexbarUsageProviderRaw): SubscriptionProviderCost {
+  const usage = raw.usage;
   return {
     provider: raw.provider ?? "unknown",
     source: raw.source,
-    updatedAt: raw.updatedAt,
-    sessionTokens: raw.sessionTokens,
-    sessionCostUsd: raw.sessionCostUSD,
-    last30DaysTokens: raw.last30DaysTokens,
-    last30DaysCostUsd: raw.last30DaysCostUSD,
-    totals,
+    updatedAt: usage?.updatedAt,
+    cliVersion: raw.version,
+
+    identity: normalizeIdentity(usage),
+
+    primary: usage?.primary,
+    secondary: usage?.secondary,
+    tertiary: usage?.tertiary ?? undefined,
+    extraWindows: usage?.extraRateWindows
+      ?.filter(
+        (entry) =>
+          entry.id !== undefined && entry.title !== undefined && entry.window !== undefined,
+      )
+      .map((entry) => ({
+        id: entry.id as string,
+        title: entry.title as string,
+        window: entry.window as NonNullable<typeof entry.window>,
+      })),
+    credits: raw.credits ? { remaining: raw.credits.remaining } : undefined,
+    providerError: raw.error
+      ? {
+          code: raw.error.code,
+          kind: raw.error.kind,
+          message: raw.error.message,
+        }
+      : undefined,
   };
 }

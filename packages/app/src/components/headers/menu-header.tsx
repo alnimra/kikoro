@@ -5,6 +5,7 @@ import { PanelLeft } from "lucide-react-native";
 import { ScreenHeader } from "./screen-header";
 import { ScreenTitle } from "./screen-title";
 import { HeaderToggleButton } from "./header-toggle-button";
+import { HeaderSubscriptionIndicator } from "./header-subscription-indicator";
 import { selectIsAgentListOpen, usePanelStore } from "@/stores/panel-store";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { getShortcutOs } from "@/utils/shortcut-platform";
@@ -88,7 +89,15 @@ export function SidebarMenuToggle({
   );
 }
 
+// Default right-slot element. Hoisted to module scope so it's a stable
+// reference — satisfies jsx-no-jsx-as-prop and lets React skip re-renders
+// when the parent's other props haven't changed. The indicator itself
+// self-resolves the active host from the path and renders nothing when
+// irrelevant, so it's a safe default across every screen using MenuHeader.
+const DEFAULT_MENU_HEADER_RIGHT = <HeaderSubscriptionIndicator />;
+
 export function MenuHeader({ title, rightContent, borderless }: MenuHeaderProps) {
+  const right = rightContent ?? DEFAULT_MENU_HEADER_RIGHT;
   return (
     <ScreenHeader
       left={
@@ -97,7 +106,7 @@ export function MenuHeader({ title, rightContent, borderless }: MenuHeaderProps)
           {title && <ScreenTitle>{title}</ScreenTitle>}
         </>
       }
-      right={rightContent}
+      right={right}
       leftStyle={styles.left}
       borderless={borderless}
     />

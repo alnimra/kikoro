@@ -3,11 +3,11 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { Logger } from "pino";
 
-import { CodexbarCostPayloadSchema, type CodexbarCostProviderRaw } from "./schemas.js";
+import { CodexbarUsagePayloadSchema, type CodexbarUsageProviderRaw } from "./schemas.js";
 
 export interface CodexbarCliResult {
   kind: "ok" | "cli_missing" | "cli_error" | "parse_error" | "timeout";
-  providers: CodexbarCostProviderRaw[];
+  providers: CodexbarUsageProviderRaw[];
   cliVersion: string | null;
   errorMessage?: string;
   errorCode?: string;
@@ -92,11 +92,14 @@ async function runCommand(
   });
 }
 
-export interface FetchCodexbarCostOptions {
+export interface FetchCodexbarUsageOptions {
   binaryPath: string;
   timeoutMs?: number;
   logger?: Logger;
 }
+
+// Back-compat alias for any caller that hadn't been renamed yet.
+export type FetchCodexbarCostOptions = FetchCodexbarUsageOptions;
 
 export async function fetchCodexbarVersion(
   binaryPath: string,
@@ -114,11 +117,14 @@ export async function fetchCodexbarVersion(
   return match ? match[0] : null;
 }
 
-export async function fetchCodexbarCost(
-  options: FetchCodexbarCostOptions,
+export async function fetchCodexbarUsage(
+  options: FetchCodexbarUsageOptions,
 ): Promise<CodexbarCliResult> {
   const { binaryPath, logger } = options;
-  const timeoutMs = options.timeoutMs ?? 30_000;
+  // 60s — `codexbar usage` hits remote APIs (codex web dashboard, claude.ai
+  // API) per provider and a cold first invocation can be slower than the
+  // pure-local `cost` path. Keep generous; the poll cadence is much longer.
+  const timeoutMs = options.timeoutMs ?? 60_000;
 
   // Refuse to spawn if the path is clearly missing (`codexbar` PATH fallback
   // still gets a chance — runCommand will report ENOENT).
@@ -127,14 +133,16 @@ export async function fetchCodexbarCost(
       kind: "cli_missing",
       providers: [],
       cliVersion: null,
-      errorMessage: `codexbar CLI not found at ${binaryPath}. Install via codexbar.app → Preferences → Advanced → Install CLI, or set CODEXBAR_CLI_PATH.`,
+      errorMessage: `codexbar CLI not found at ${binaryPath}. Install CodexBar.app and ensure /Applications/CodexBar.app/Contents/Helpers/CodexBarCLI is present, or set CODEXBAR_CLI_PATH.`,
       errorCode: "binary_not_found",
     };
   }
 
   const cliVersion = await fetchCodexbarVersion(binaryPath).catch(() => null);
 
-  const result = await runCommand(binaryPath, ["cost", "--format", "json"], { timeoutMs });
+  const result = await runCommand(binaryPath, ["usage", "--format", "json", "--provider", "all"], {
+    timeoutMs,
+  });
 
   if (result.timedOut) {
     logger?.warn({ binaryPath, timeoutMs }, "codexbar.cli.timeout");
@@ -193,7 +201,7 @@ export async function fetchCodexbarCost(
     };
   }
 
-  const schemaResult = CodexbarCostPayloadSchema.safeParse(parsedJson);
+  const schemaResult = CodexbarUsagePayloadSchema.safeParse(parsedJson);
   if (!schemaResult.success) {
     logger?.warn({ issues: schemaResult.error.issues.slice(0, 3) }, "codexbar.cli.schema_mismatch");
     return {
