@@ -1038,7 +1038,12 @@ export default function SettingsScreen({ view }: SettingsScreenProps) {
             />
           );
         case "subscriptions":
-          return <SubscriptionsSection serverId={localServerId} />;
+          // `localServerId` is desktop-app-only (Electron). On iOS / web the
+          // hook returns null and the Subscriptions screen would render
+          // "Connect to a host" even when a paired host is online and the
+          // daemon is broadcasting real codexbar data. Fall back to the
+          // first online host so the screen renders on mobile too.
+          return <SubscriptionsSection serverId={localServerId ?? anyOnlineServerId} />;
         case "shortcuts":
           return isDesktopApp ? <KeyboardShortcutsSection /> : null;
         case "integrations":
