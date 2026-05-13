@@ -15,7 +15,10 @@ import {
 } from "@/timeline/session-stream-reducers";
 import { TIMELINE_FETCH_PAGE_SIZE } from "@/timeline/timeline-fetch-policy";
 import type { AgentAttachment, SessionOutboundMessage } from "@server/shared/messages";
-import { parseServerInfoStatusPayload } from "@server/shared/messages";
+import {
+  parseServerInfoStatusPayload,
+  SubscriptionUsageSnapshotSchema,
+} from "@server/shared/messages";
 import {
   buildAgentAttentionNotificationPayload,
   type AgentAttentionNotificationPayload,
@@ -472,6 +475,7 @@ function SessionProviderInternal({ children, serverId, client }: SessionProvider
   const setQueuedMessages = useSessionStore((state) => state.setQueuedMessages);
   const updateSessionClient = useSessionStore((state) => state.updateSessionClient);
   const updateSessionServerInfo = useSessionStore((state) => state.updateSessionServerInfo);
+  const updateSubscriptionUsage = useSessionStore((state) => state.updateSubscriptionUsage);
   const upsertWorkspaceSetupProgress = useWorkspaceSetupStore((state) => state.upsertProgress);
   const removeWorkspaceSetup = useWorkspaceSetupStore((state) => state.removeWorkspace);
   const clearWorkspaceSetupServer = useWorkspaceSetupStore((state) => state.clearServer);
@@ -1286,6 +1290,15 @@ function SessionProviderInternal({ children, serverId, client }: SessionProvider
         });
         return;
       }
+      // COMPAT(codexbarUsage): kikoro 1.1.0. Older clients/daemons ignore this.
+      const rawPayload = message.payload as { status?: unknown; snapshot?: unknown };
+      if (rawPayload.status === "subscription_usage_updated") {
+        const parsed = SubscriptionUsageSnapshotSchema.safeParse(rawPayload.snapshot);
+        if (parsed.success) {
+          updateSubscriptionUsage(serverId, parsed.data);
+        }
+        return;
+      }
     });
 
     const unsubPermissionRequest = client.on("agent_permission_request", (message) => {
@@ -1647,6 +1660,7 @@ function SessionProviderInternal({ children, serverId, client }: SessionProvider
     applyWorkspaceSetupProgress,
     applyTimelineResponse,
     updateSessionServerInfo,
+    updateSubscriptionUsage,
     voiceRuntime,
     voiceAudioEngine,
   ]);

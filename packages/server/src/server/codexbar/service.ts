@@ -1,0 +1,223 @@
+import type { Logger } from "pino";
+
+import {
+  type SubscriptionProviderCost,
+  type SubscriptionUsageSnapshot,
+} from "../../shared/messages.js";
+
+import { readCachedSnapshot, writeCachedSnapshot } from "./cache.js";
+import { fetchCodexbarCost, resolveCodexbarBinaryPath, type CodexbarCliResult } from "./cli.js";
+import type { CodexbarCostProviderRaw } from "./schemas.js";
+
+export interface CodexbarServiceOptions {
+  paseoHome: string;
+  logger: Logger;
+  broadcast: (snapshot: SubscriptionUsageSnapshot) => void;
+  pollIntervalMs?: number;
+  cliTimeoutMs?: number;
+  binaryPath?: string;
+  // Test seam: replaces fetchCodexbarCost.
+  fetchFn?: typeof fetchCodexbarCost;
+  // Test seam: replaces Date.now in capturedAt timestamps.
+  now?: () => Date;
+}
+
+const DEFAULT_POLL_INTERVAL_MS = 60_000;
+const DEFAULT_CLI_TIMEOUT_MS = 30_000;
+
+export class CodexbarService {
+  private readonly options: Required<
+    Omit<CodexbarServiceOptions, "logger" | "broadcast" | "fetchFn" | "now">
+  > & {
+    logger: Logger;
+    broadcast: (snapshot: SubscriptionUsageSnapshot) => void;
+    fetchFn: typeof fetchCodexbarCost;
+    now: () => Date;
+  };
+  private latestSnapshot: SubscriptionUsageSnapshot | null = null;
+  private timer: NodeJS.Timeout | null = null;
+  private running = false;
+  private pollInFlight: Promise<void> | null = null;
+
+  constructor(options: CodexbarServiceOptions) {
+    this.options = {
+      paseoHome: options.paseoHome,
+      logger: options.logger.child({ module: "codexbar" }),
+      broadcast: options.broadcast,
+      pollIntervalMs: options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS,
+      cliTimeoutMs: options.cliTimeoutMs ?? DEFAULT_CLI_TIMEOUT_MS,
+      binaryPath: options.binaryPath ?? resolveCodexbarBinaryPath() ?? "codexbar",
+      fetchFn: options.fetchFn ?? fetchCodexbarCost,
+      now: options.now ?? (() => new Date()),
+    };
+  }
+
+  async start(): Promise<void> {
+    if (this.running) {
+      return;
+    }
+    this.running = true;
+    // Surface the cached snapshot immediately on startup so the first
+    // connected client sees something instead of "loading" indefinitely while
+    // the first poll is in flight.
+    const cached = await readCachedSnapshot(this.options.paseoHome, this.options.logger);
+    if (cached) {
+      const stale = stalifySnapshot(cached, this.options.now());
+      this.latestSnapshot = stale;
+      this.options.broadcast(stale);
+    }
+    // Fire-and-forget the first poll; loop scheduling handles the rest.
+    void this.runPoll();
+    this.scheduleNext();
+  }
+
+  stop(): void {
+    this.running = false;
+    if (this.timer) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
+  }
+
+  getLatestSnapshot(): SubscriptionUsageSnapshot | null {
+    return this.latestSnapshot;
+  }
+
+  async refresh(): Promise<void> {
+    await this.runPoll();
+  }
+
+  private scheduleNext(): void {
+    if (!this.running) {
+      return;
+    }
+    this.timer = setTimeout(() => {
+      void this.runPoll().finally(() => this.scheduleNext());
+    }, this.options.pollIntervalMs);
+  }
+
+  private async runPoll(): Promise<void> {
+    if (this.pollInFlight) {
+      return this.pollInFlight;
+    }
+    this.pollInFlight = this.doPoll().finally(() => {
+      this.pollInFlight = null;
+    });
+    return this.pollInFlight;
+  }
+
+  private async doPoll(): Promise<void> {
+    const { logger, broadcast, paseoHome, binaryPath, cliTimeoutMs, fetchFn, now } = this.options;
+    let result: CodexbarCliResult;
+    try {
+      result = await fetchFn({ binaryPath, timeoutMs: cliTimeoutMs, logger });
+    } catch (error) {
+      logger.warn({ err: error }, "codexbar.poll.threw");
+      result = {
+        kind: "cli_error",
+        providers: [],
+        cliVersion: null,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorCode: "exception",
+      };
+    }
+
+    const snapshot = buildSnapshot(result, now());
+
+    if (snapshot.status === "ok") {
+      this.latestSnapshot = snapshot;
+      await writeCachedSnapshot(paseoHome, snapshot, logger);
+      broadcast(snapshot);
+      return;
+    }
+
+    // Non-ok path: if we have a previous successful snapshot in memory or on
+    // disk, emit it tagged as stale instead of a hard error so the iOS app
+    // can keep showing numbers with an "Updated X min ago" banner.
+    const fallback = this.latestSnapshot ?? (await readCachedSnapshot(paseoHome, logger));
+    if (fallback && fallback.status === "ok") {
+      const staleSnapshot: SubscriptionUsageSnapshot = {
+        ...fallback,
+        status: "stale",
+        error: {
+          code: snapshot.error?.code,
+          message: snapshot.error?.message ?? "codexbar poll failed; showing cached data",
+        },
+      };
+      this.latestSnapshot = staleSnapshot;
+      broadcast(staleSnapshot);
+      return;
+    }
+
+    // No fallback available — broadcast the raw error snapshot so the UI can
+    // surface the empty-state copy and the user knows why.
+    this.latestSnapshot = snapshot;
+    broadcast(snapshot);
+  }
+}
+
+function stalifySnapshot(
+  snapshot: SubscriptionUsageSnapshot,
+  capturedAt: Date,
+): SubscriptionUsageSnapshot {
+  if (snapshot.status !== "ok") {
+    return snapshot;
+  }
+  return {
+    ...snapshot,
+    status: "stale",
+    capturedAt: capturedAt.toISOString(),
+    error: {
+      code: "boot_cache",
+      message: "Cached snapshot loaded on daemon start; refreshing.",
+    },
+  };
+}
+
+export function buildSnapshot(
+  result: CodexbarCliResult,
+  capturedAt: Date,
+): SubscriptionUsageSnapshot {
+  const capturedAtIso = capturedAt.toISOString();
+  if (result.kind === "ok") {
+    return {
+      status: "ok",
+      capturedAt: capturedAtIso,
+      providers: result.providers.map(normalizeProvider),
+      cliVersion: result.cliVersion,
+    };
+  }
+  return {
+    status: result.kind,
+    capturedAt: capturedAtIso,
+    providers: [],
+    cliVersion: result.cliVersion,
+    error: {
+      code: result.errorCode,
+      message: result.errorMessage ?? "codexbar CLI failed",
+    },
+  };
+}
+
+function normalizeProvider(raw: CodexbarCostProviderRaw): SubscriptionProviderCost {
+  const totals = raw.totals
+    ? {
+        totalCost: raw.totals.totalCost,
+        totalTokens: raw.totals.totalTokens,
+        inputTokens: raw.totals.inputTokens,
+        outputTokens: raw.totals.outputTokens,
+        cacheReadTokens: raw.totals.cacheReadTokens,
+        cacheCreationTokens: raw.totals.cacheCreationTokens,
+      }
+    : undefined;
+  return {
+    provider: raw.provider ?? "unknown",
+    source: raw.source,
+    updatedAt: raw.updatedAt,
+    sessionTokens: raw.sessionTokens,
+    sessionCostUsd: raw.sessionCostUSD,
+    last30DaysTokens: raw.last30DaysTokens,
+    last30DaysCostUsd: raw.last30DaysCostUSD,
+    totals,
+  };
+}
