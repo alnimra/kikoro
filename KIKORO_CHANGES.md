@@ -87,13 +87,49 @@ Note: `merge=ours` requires `git config merge.ours.driver true` to be set on the
 6. If clean: push merge to `alnimra/kikoro` `origin/main`.
 7. If a paseo CVE drops between pins: out-of-cycle override — re-pin to upstream HEAD, run smoke + test build, ship hotfix EAS Update via `eas update`.
 
-## Future v2+ work (not in this fork yet)
+## v2 — Codex/Claude subscription usage tracking (kikoro 1.1.0)
+
+First opinionated feature shipping beyond the v1 branding swap. Adds a Subscriptions section to iOS Settings that surfaces local CodexBar.app usage data (today's spend + last-30-day totals per provider).
+
+### What ships
+
+- New daemon module `packages/server/src/server/codexbar/` that polls `codexbar cost --format json` on a 60s loop and broadcasts a normalized snapshot to every connected client over the existing WebSocket. Daemon-mediated, no separate transport — works over paseo's encrypted relay when iPhone is off-LAN.
+- New protocol payload `subscription_usage_updated` plus capability gate `server_info.features.codexbarUsage` (all additive, passthrough Zod). Old clients ignore the new payload; clients hide the screen when the flag is absent.
+- iOS `SubscriptionsSection` reachable from Settings sidebar. State-explicit copy for 8 conditions (loading, cli_missing, cli_error, parse_error, timeout, stale, empty, ok). Polls daemon broadcast plus a 60s tick for "Updated Xm ago".
+- Atomic last-known-good cache at `$PASEO_HOME/codexbar/last-good.json` replayed on daemon start.
+- Fake codexbar shim fixtures under `packages/server/src/server/codexbar/__fixtures__/` for the test suite.
+
+### Why the daemon-mediated design (vs a separate Mac sidecar process)
+
+A separate bridge can't reach iOS over paseo's encrypted relay — the `ConnectionOfferV2` pair-link schema is single-channel. A bridge bound to `127.0.0.1` is unreachable from the iPhone; bound to LAN, it's dead off-LAN. The daemon-mediated approach was the user-challenge resolution at /autoplan's final gate, accepting that this is the first per-feature departure from the "backend stays vanilla paseo" doctrine. Mitigated by being additive, capability-gated, and plausibly upstreamable to paseo as a separate workstream.
+
+### Pivot from the /autoplan plan
+
+Plan assumed `codexbar usage --format json` (quota windows + reset countdowns). Real testing on the user's Mac showed `usage` requires CodexBar.app running with browser cookies / OAuth set up; on a fresh shell it returns empty. `cost` is local JSONL parsing and returns useful totals immediately, and matches the user's stated need ("my total on both Claude and codex"). Trivial to add `usage` later via the same poll+broadcast plumbing.
+
+### Files touched
+
+| Layer            | Path                                                                                    | Lines          |
+| ---------------- | --------------------------------------------------------------------------------------- | -------------- |
+| Schema           | `packages/server/src/shared/messages.ts`                                                | +56 (additive) |
+| Daemon           | `packages/server/src/server/codexbar/{schemas,cli,cache,service}.ts` + tests + fixtures | +500           |
+| Daemon wiring    | `packages/server/src/server/{bootstrap,websocket-server}.ts`                            | +50            |
+| iOS protocol     | `packages/app/src/contexts/session-context.tsx`                                         | +12            |
+| iOS state        | `packages/app/src/stores/session-store.ts`                                              | +30            |
+| iOS UI           | `packages/app/src/screens/settings/subscriptions-section.tsx`                           | +266 (new)     |
+| iOS routing      | `packages/app/src/utils/host-routes.ts` + `screens/settings-screen.tsx`                 | +7             |
+| Hooks            | `packages/app/src/hooks/use-subscription-usage.ts`                                      | +28            |
+| Util + test      | `packages/app/src/utils/format-relative-time*`                                          | +48            |
+| Regression smoke | `scripts/back-compat-smoke.mjs`                                                         | +69            |
+
+### Future v3+ work (not in this fork yet)
 
 The full design doc (in user's `~/.gstack/projects/alnimra-kikoro/`) plans these opinionated features for future sessions:
 
 - Kanban-style issue management with sub-issue spawning (state lives in iCloud Drive JSON, not kikoro-local)
-- Codex/Claude usage tracking (current-session counter for v1; historical graph deferred)
 - Agent-delegated question answering (rule-table engine, not LLM impersonation)
 - Approval gates as new layer of user-defined rules over paseo's bash approvals
+- Subscription quota windows (`codexbar usage` path — same plumbing, just a second CLI invocation)
+- Home Screen widget for ambient subscription awareness (explicit follow-on from the autoplan design review)
 
 Each feature ships independently. When a feature touches paseo's WebSocket protocol (e.g., `source: "delegate"|"user"|"rule"` provenance fields), the protocol fork risk gets evaluated at that point.
