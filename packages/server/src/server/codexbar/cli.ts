@@ -163,10 +163,19 @@ export async function fetchCodexbarUsage(
       errorCode: "spawn_failed",
     };
   }
-  if (result.exitCode !== 0) {
+  // CodexBarCLI exits non-zero (typically 1) whenever ANY provider returned an
+  // error — even when other providers succeeded and stdout contains a valid
+  // JSON array carrying the successful providers' quota data. On a typical
+  // Mac the user is signed into 2-3 providers (codex, claude) but codexbar
+  // probes ~40 — meaning exit 1 is the normal steady state and ignoring
+  // stdout discards the data we actually want. Treat non-zero exit as a
+  // soft signal: if stdout parses to the expected schema, take it; otherwise
+  // surface as cli_error.
+  const trimmedStdout = result.stdout.trim();
+  if (result.exitCode !== 0 && !trimmedStdout) {
     logger?.warn(
       { binaryPath, exitCode: result.exitCode, stderr: result.stderr.slice(0, 200) },
-      "codexbar.cli.nonzero_exit",
+      "codexbar.cli.nonzero_exit_no_stdout",
     );
     return {
       kind: "cli_error",
@@ -176,8 +185,16 @@ export async function fetchCodexbarUsage(
       errorCode: `exit_${result.exitCode}`,
     };
   }
+  if (result.exitCode !== 0) {
+    // We'll attempt to parse stdout; log the non-zero exit at debug level so
+    // operators know it's normal-but-noted, not silent.
+    logger?.debug(
+      { binaryPath, exitCode: result.exitCode, stdoutBytes: trimmedStdout.length },
+      "codexbar.cli.nonzero_exit_with_stdout",
+    );
+  }
 
-  const trimmed = result.stdout.trim();
+  const trimmed = trimmedStdout;
   if (!trimmed) {
     // Exit 0 with empty stdout — known case when codexbar finds no enabled
     // providers, or when local JSONL scan returns nothing.
