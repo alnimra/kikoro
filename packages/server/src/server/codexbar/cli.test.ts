@@ -66,13 +66,25 @@ describe("fetchCodexbarUsage", () => {
     expect(result.errorCode).toBe("binary_not_found");
   });
 
-  it("returns kind=cli_error with stderr in the message on nonzero exit", async () => {
+  it("returns kind=cli_error with stderr in the message on nonzero exit + empty stdout", async () => {
     const result = await fetchCodexbarUsage({
       binaryPath: resolve(FIXTURES, "fake-codexbar-nonzero.sh"),
     });
     expect(result.kind).toBe("cli_error");
     expect(result.errorCode).toBe("exit_2");
     expect(result.errorMessage).toContain("provider 'bogus'");
+  });
+
+  it("returns kind=ok when CLI exits nonzero BUT stdout has valid provider JSON (real-world CodexBarCLI behavior)", async () => {
+    const result = await fetchCodexbarUsage({
+      binaryPath: resolve(FIXTURES, "fake-codexbar-partial-success.sh"),
+    });
+    expect(result.kind).toBe("ok");
+    expect(result.providers).toHaveLength(2);
+    expect(result.providers[0]?.provider).toBe("codex");
+    expect(result.providers[0]?.usage?.primary?.usedPercent).toBe(1);
+    expect(result.providers[1]?.provider).toBe("openai");
+    expect(result.providers[1]?.error?.message).toContain("No available fetch strategy");
   });
 
   it("returns kind=parse_error when stdout is not valid JSON", async () => {
