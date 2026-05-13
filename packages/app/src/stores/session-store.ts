@@ -21,6 +21,7 @@ import type {
   ProjectPlacementPayload,
   ServerCapabilities,
   WorkspaceDescriptorPayload,
+  SubscriptionUsageSnapshot,
 } from "@server/shared/messages";
 import { normalizeWorkspaceOpaqueId } from "@/utils/workspace-identity";
 import { resolveWorkspaceMapKeyByIdentity } from "@/utils/workspace-execution";
@@ -295,6 +296,11 @@ export interface SessionState {
     string,
     Array<{ id: string; text: string; attachments: ComposerAttachment[] }>
   >;
+
+  // COMPAT(codexbarUsage): added in kikoro 1.1.0. Daemons without
+  // server_info.features.codexbarUsage never populate this and the UI
+  // hides the subscriptions screen accordingly.
+  subscriptionUsage: SubscriptionUsageSnapshot | null;
 }
 
 // Global store state
@@ -313,6 +319,7 @@ interface SessionStoreActions {
   getSession: (serverId: string) => SessionState | undefined;
   updateSessionClient: (serverId: string, client: DaemonClient) => void;
   updateSessionServerInfo: (serverId: string, info: DaemonServerInfo) => void;
+  updateSubscriptionUsage: (serverId: string, snapshot: SubscriptionUsageSnapshot) => void;
 
   // Audio state
   setIsPlayingAudio: (serverId: string, playing: boolean) => void;
@@ -467,6 +474,7 @@ function createInitialSessionState(serverId: string, client: DaemonClient): Sess
     pendingPermissions: new Map(),
     fileExplorer: new Map(),
     queuedMessages: new Map(),
+    subscriptionUsage: null,
   };
 }
 
@@ -647,6 +655,28 @@ export const useSessionStore = create<SessionStore>()(
                   ...(nextCapabilities ? { capabilities: nextCapabilities } : {}),
                   ...(nextFeatures ? { features: nextFeatures } : {}),
                 },
+              },
+            },
+          };
+        });
+      },
+
+      updateSubscriptionUsage: (serverId, snapshot) => {
+        set((prev) => {
+          const session = prev.sessions[serverId];
+          if (!session) {
+            return prev;
+          }
+          if (equal(session.subscriptionUsage, snapshot)) {
+            return prev;
+          }
+          return {
+            ...prev,
+            sessions: {
+              ...prev.sessions,
+              [serverId]: {
+                ...session,
+                subscriptionUsage: snapshot,
               },
             },
           };

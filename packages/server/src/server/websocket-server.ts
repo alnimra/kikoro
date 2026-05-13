@@ -371,6 +371,10 @@ export class VoiceAssistantWebSocketServer {
   private runtimeMetricsInterval: ReturnType<typeof setInterval> | null = null;
   private unsubscribeSpeechReadiness: (() => void) | null = null;
   private unsubscribeDaemonConfigChange: (() => void) | null = null;
+  // COMPAT(codexbarUsage): see SubscriptionUsageUpdatedStatusPayloadSchema.
+  private latestSubscriptionUsage:
+    | import("../shared/messages.js").SubscriptionUsageSnapshot
+    | null = null;
 
   constructor(
     server: HTTPServer,
@@ -1005,6 +1009,7 @@ export class VoiceAssistantWebSocketServer {
       existing.sockets.add(ws);
       this.sessions.set(ws, existing);
       this.sendToClient(ws, this.createServerInfoMessage());
+      this.maybeSendSubscriptionUsage(ws);
       existing.connectionLogger.trace(
         {
           clientId,
@@ -1028,6 +1033,7 @@ export class VoiceAssistantWebSocketServer {
     this.sessions.set(ws, connection);
     this.externalSessionsByKey.set(clientId, connection);
     this.sendToClient(ws, this.createServerInfoMessage());
+    this.maybeSendSubscriptionUsage(ws);
     connection.connectionLogger.trace(
       {
         clientId,
@@ -1035,6 +1041,25 @@ export class VoiceAssistantWebSocketServer {
         totalSessions: this.sessions.size,
       },
       "Client connected via hello",
+    );
+  }
+
+  // COMPAT(codexbarUsage): send the last-known codexbar snapshot to a newly
+  // connected client so it doesn't sit on the loading state for a full poll
+  // cycle. Safe for legacy clients — they discriminate on `status` and ignore
+  // unknown values, and the feature flag in server_info gates UI rendering.
+  private maybeSendSubscriptionUsage(ws: WebSocketLike): void {
+    const snapshot = this.latestSubscriptionUsage;
+    if (!snapshot) return;
+    this.sendToClient(
+      ws,
+      wrapSessionMessage({
+        type: "status",
+        payload: {
+          status: "subscription_usage_updated",
+          snapshot,
+        },
+      }),
     );
   }
 
@@ -1048,8 +1073,33 @@ export class VoiceAssistantWebSocketServer {
       features: {
         // COMPAT(providersSnapshot): keep optional until all clients rely on snapshot flow.
         providersSnapshot: true,
+        // COMPAT(codexbarUsage): added in kikoro 1.1.0 (2026-05). iOS clients that
+        // do not understand subscription_usage_updated must hide the subscriptions
+        // screen when this flag is absent or false.
+        codexbarUsage: true,
       },
     };
+  }
+
+  public broadcastSubscriptionUsage(
+    snapshot: import("../shared/messages.js").SubscriptionUsageSnapshot,
+  ): void {
+    this.latestSubscriptionUsage = snapshot;
+    this.broadcast(
+      wrapSessionMessage({
+        type: "status",
+        payload: {
+          status: "subscription_usage_updated",
+          snapshot,
+        },
+      }),
+    );
+  }
+
+  public getLatestSubscriptionUsage():
+    | import("../shared/messages.js").SubscriptionUsageSnapshot
+    | null {
+    return this.latestSubscriptionUsage;
   }
 
   private createServerInfoMessage(): WSOutboundMessage {

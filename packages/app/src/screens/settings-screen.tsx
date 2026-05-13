@@ -28,6 +28,7 @@ import {
   Puzzle,
   Plus,
   FolderGit2,
+  Gauge,
 } from "lucide-react-native";
 import { SidebarHeaderRow } from "@/components/sidebar/sidebar-header-row";
 import { SidebarSeparator } from "@/components/sidebar/sidebar-separator";
@@ -53,6 +54,7 @@ import { AddHostMethodModal } from "@/components/add-host-method-modal";
 import { AddHostModal } from "@/components/add-host-modal";
 import { PairLinkModal } from "@/components/pair-link-modal";
 import { KeyboardShortcutsSection } from "@/screens/settings/keyboard-shortcuts-section";
+import { SubscriptionsSection } from "@/screens/settings/subscriptions-section";
 import { Button } from "@/components/ui/button";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
@@ -106,6 +108,7 @@ interface SidebarSectionItem {
 
 const SIDEBAR_SECTION_ITEMS: SidebarSectionItem[] = [
   { id: "general", label: "General", icon: Settings },
+  { id: "subscriptions", label: "Subscriptions", icon: Gauge },
   { id: "shortcuts", label: "Shortcuts", icon: Keyboard, desktopOnly: true },
   { id: "integrations", label: "Integrations", icon: Puzzle, desktopOnly: true },
   { id: "permissions", label: "Permissions", icon: Shield, desktopOnly: true },
@@ -828,6 +831,7 @@ export default function SettingsScreen({ view }: SettingsScreenProps) {
   const hosts = useHosts();
   const hostServerIds = useMemo(() => hosts.map((host) => host.serverId), [hosts]);
   const anyOnlineServerId = useAnyOnlineHostServerId(hostServerIds);
+  const localServerId = useLocalDaemonServerId();
 
   const handleThemeChange = useCallback(
     (nextTheme: AppSettings["theme"]) => {
@@ -1033,6 +1037,8 @@ export default function SettingsScreen({ view }: SettingsScreenProps) {
               handleServiceUrlBehaviorChange={handleServiceUrlBehaviorChange}
             />
           );
+        case "subscriptions":
+          return <SubscriptionsSection serverId={localServerId} />;
         case "shortcuts":
           return isDesktopApp ? <KeyboardShortcutsSection /> : null;
         case "integrations":

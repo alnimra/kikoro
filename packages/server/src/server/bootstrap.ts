@@ -134,6 +134,7 @@ import {
   createScriptProxyUpgradeHandler,
 } from "./script-proxy.js";
 import { ScriptHealthMonitor } from "./script-health-monitor.js";
+import { CodexbarService } from "./codexbar/service.js";
 import { createScriptStatusEmitter } from "./script-status-projection.js";
 import { WorkspaceScriptRuntimeStore } from "./workspace-script-runtime-store.js";
 import { isHostnameAllowed, type HostnamesConfig } from "./hostnames.js";
@@ -308,6 +309,7 @@ export async function createPaseoDaemon(
   const scriptRuntimeStore = new WorkspaceScriptRuntimeStore();
   const configuredHostnames = config.hostnames ?? config.allowedHosts;
   let wsServer: VoiceAssistantWebSocketServer | null = null;
+  let codexbarService: CodexbarService | null = null;
   const scriptHealthMonitor = new ScriptHealthMonitor({
     routeStore: scriptRouteStore,
     onChange: createScriptStatusEmitter({
@@ -940,9 +942,24 @@ export async function createPaseoDaemon(
     // model loading doesn't block the server from accepting connections.
     speechService.start();
     scriptHealthMonitor.start();
+
+    // Codexbar usage poller (kikoro 1.1.0). Best-effort: if codexbar.app
+    // isn't installed the service still runs and broadcasts a cli_missing
+    // snapshot so iOS can render the empty-state copy.
+    if (wsServer) {
+      codexbarService = new CodexbarService({
+        paseoHome: config.paseoHome,
+        logger,
+        broadcast: (snapshot) => wsServer?.broadcastSubscriptionUsage(snapshot),
+      });
+      void codexbarService.start().catch((err: unknown) => {
+        logger.warn({ err }, "codexbar.service.start_failed");
+      });
+    }
   };
 
   const stop = async () => {
+    codexbarService?.stop();
     scriptHealthMonitor.stop();
     await closeAllAgents(logger, agentManager);
     await agentManager.flush().catch(() => undefined);

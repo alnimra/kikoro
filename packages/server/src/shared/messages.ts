@@ -1981,9 +1981,11 @@ export const ServerInfoStatusPayloadSchema = z
     version: ServerInfoVersionSchema.optional(),
     capabilities: ServerCapabilitiesFromUnknownSchema,
     // COMPAT(providersSnapshot): added in v0.1.48, remove gating when all clients use snapshot
+    // COMPAT(codexbarUsage): added in kikoro 1.1.0 (2026-05); see SubscriptionUsageUpdated*.
     features: z
       .object({
         providersSnapshot: z.boolean().optional(),
+        codexbarUsage: z.boolean().optional(),
       })
       .optional(),
   })
@@ -2079,6 +2081,59 @@ export const DaemonConfigChangedStatusPayloadSchema = z
   })
   .passthrough();
 
+// COMPAT(codexbarUsage): added in kikoro 1.1.0 (2026-05). Carries a snapshot
+// of codexbar's per-provider cost data (mirrors `codexbar cost --format json`),
+// gated by server_info.features.codexbarUsage. All fields are optional and
+// passthrough so a future codexbar CLI shape change does not break clients.
+// Drop the gate when the floor pins kikoro >= 1.1.0.
+export const SubscriptionProviderCostSchema = z
+  .object({
+    provider: z.string(),
+    source: z.string().optional(),
+    updatedAt: z.string().optional(),
+    sessionTokens: z.number().optional(),
+    sessionCostUsd: z.number().optional(),
+    last30DaysTokens: z.number().optional(),
+    last30DaysCostUsd: z.number().optional(),
+    totals: z
+      .object({
+        totalCost: z.number().optional(),
+        totalTokens: z.number().optional(),
+        inputTokens: z.number().optional(),
+        outputTokens: z.number().optional(),
+        cacheReadTokens: z.number().optional(),
+        cacheCreationTokens: z.number().optional(),
+      })
+      .partial()
+      .passthrough()
+      .optional(),
+  })
+  .passthrough();
+
+export type SubscriptionProviderCost = z.infer<typeof SubscriptionProviderCostSchema>;
+
+export const SubscriptionUsageSnapshotSchema = z.object({
+  status: z.enum(["ok", "loading", "cli_missing", "cli_error", "parse_error", "timeout", "stale"]),
+  capturedAt: z.string(),
+  providers: z.array(SubscriptionProviderCostSchema).default([]),
+  error: z
+    .object({
+      code: z.string().optional(),
+      message: z.string(),
+    })
+    .optional(),
+  cliVersion: z.string().nullable().optional(),
+});
+
+export type SubscriptionUsageSnapshot = z.infer<typeof SubscriptionUsageSnapshotSchema>;
+
+export const SubscriptionUsageUpdatedStatusPayloadSchema = z
+  .object({
+    status: z.literal("subscription_usage_updated"),
+    snapshot: SubscriptionUsageSnapshotSchema,
+  })
+  .passthrough();
+
 export const KnownStatusPayloadSchema = z.discriminatedUnion("status", [
   AgentCreatedStatusPayloadSchema,
   AgentCreateFailedStatusPayloadSchema,
@@ -2087,6 +2142,7 @@ export const KnownStatusPayloadSchema = z.discriminatedUnion("status", [
   ShutdownRequestedStatusPayloadSchema,
   RestartRequestedStatusPayloadSchema,
   DaemonConfigChangedStatusPayloadSchema,
+  SubscriptionUsageUpdatedStatusPayloadSchema,
 ]);
 
 export type KnownStatusPayload = z.infer<typeof KnownStatusPayloadSchema>;
