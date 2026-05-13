@@ -89,7 +89,7 @@ Note: `merge=ours` requires `git config merge.ours.driver true` to be set on the
 
 ## v2 — Codex/Claude subscription usage tracking (kikoro 1.1.0)
 
-First opinionated feature shipping beyond the v1 branding swap. Adds a Subscriptions section to iOS Settings that surfaces local CodexBar.app usage data (today's spend + last-30-day totals per provider).
+**Superseded by v3 (kikoro 1.2.0).** First opinionated feature shipping beyond the v1 branding swap. Originally shipped with dollar-totals UI; replaced in 1.2.0 with codexbar-style quota windows. See v3 for current shape. v1.1.0 daemons remain wire-compatible with v1.2.0 daemons (additive schema; deprecated dollar fields kept `.optional()` until 2026-11).
 
 ### What ships
 
@@ -133,3 +133,51 @@ The full design doc (in user's `~/.gstack/projects/alnimra-kikoro/`) plans these
 - Home Screen widget for ambient subscription awareness (explicit follow-on from the autoplan design review)
 
 Each feature ships independently. When a feature touches paseo's WebSocket protocol (e.g., `source: "delegate"|"user"|"rule"` provenance fields), the protocol fork risk gets evaluated at that point.
+
+## v3 — Subscription usage redesign: quota windows, not dollars (kikoro 1.2.0)
+
+**Replaces v2's dollar-totals UI with codexbar-style quota windows + always-visible header indicator.** Same daemon-mediated transport, same capability gate, much better data.
+
+### What changed and why
+
+v1.1.0 (v2) shipped `codexbar cost --format json` → "Codex $49 today / $2944 30d, Claude $75 / $1404". The user's actual need was _"how much of my plan is left?"_ — visibility into quota consumption, not a dollar bill. v1.1.0 was wrong-product-but-right-plumbing.
+
+v1.2.0 swaps the CLI invocation to `codexbar usage --format json --provider all` (already documented by CodexBarCLI 0.25.1+) and renders Session / Weekly / extra-window bars per provider with `% left` + reset countdowns + plan tier + account. No dollar amounts anywhere on the screen.
+
+### Implementation
+
+- **Daemon (`packages/server/src/server/codexbar/`):**
+  - `cli.ts`: `fetchCodexbarCost` → `fetchCodexbarUsage`. Args `["usage", "--format", "json", "--provider", "all"]`. Timeout 30s → 60s (cold codexbar.app + remote API roundtrips for codex/claude).
+  - `schemas.ts`: new `CodexbarUsageProviderRawSchema` matching the actual `usage` JSON (primary/secondary/tertiary windows, extraRateWindows, identity, credits, per-provider error). Old `CodexbarCostProviderRawSchema` kept exported for any straggler import.
+  - `service.ts`: new `normalizeProvider` maps raw `usage` shape → broadcast shape. Pass-through per-provider error (`No available fetch strategy for openai`-style) preserved as `providerError` field. Dollar fields no longer populated.
+- **Protocol (`shared/messages.ts`):** Additive. `SubscriptionProviderCostSchema` gains `identity`, `primary`, `secondary`, `tertiary`, `extraWindows`, `credits`, `providerError`, `cliVersion`. Old dollar fields stay `.optional()` and are explicitly marked deprecated in the COMPAT comment. Capability flag `codexbarUsage` unchanged. Old v1.1.0 clients on a v1.2.0 daemon see empty cells in their dollar table — graceful degradation per the `CLAUDE.md` "no fallback paths" rule.
+- **iOS (`packages/app/src/screens/settings/subscriptions-section.tsx`):** Full UI rewrite. Per-provider card with Session/Weekly/extra bars (color-coded green ≥50%, yellow 20-49%, red <20%), reset countdown, plan tier, account. `assertNotVisible: "$"` in the QA flow enforces the no-dollars rule.
+- **iOS header indicator (`packages/app/src/components/headers/header-subscription-indicator.tsx`):** NEW. Small color-coded chip showing the lowest `% left` across all tracked quota windows for the active host. Self-resolves serverId from the pathname. Tap → navigates to Subscriptions. Mounted as the default `rightContent` slot in `MenuHeader`, so it appears across every screen using that header without per-caller plumbing changes.
+
+### Why no new capability flag
+
+v1.1.0's `codexbarUsage` flag means "this daemon supports subscription tracking via codexbar." The feature is unchanged in essence; only the data shape evolved within a back-compat-clean schema. Adding a `codexbarUsageV2` flag would split the wire surface unnecessarily — old daemons stop being relevant once the user updates the Mac daemon, and the protocol's degraded-empty-table behavior is acceptable.
+
+### Files touched
+
+| Layer            | Path                                                                                                   | Lines (net)                                                                    |
+| ---------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| Schema           | `packages/server/src/shared/messages.ts`                                                               | +60                                                                            |
+| Daemon raw       | `packages/server/src/server/codexbar/schemas.ts`                                                       | +80 (rewrite)                                                                  |
+| Daemon CLI       | `packages/server/src/server/codexbar/cli.ts`                                                           | +25 -10 (rename + args)                                                        |
+| Daemon service   | `packages/server/src/server/codexbar/service.ts`                                                       | +45 -20 (new mapping)                                                          |
+| Daemon tests     | `packages/server/src/server/codexbar/{cli,service,cache}.test.ts` + `__fixtures__/fake-codexbar-ok.sh` | +200 -100 (new fixtures + 3rd-entry openai-error case + extraRateWindows case) |
+| iOS UI           | `packages/app/src/screens/settings/subscriptions-section.tsx`                                          | +330 -200 (rewrite)                                                            |
+| iOS header chip  | `packages/app/src/components/headers/header-subscription-indicator.tsx`                                | +110 (new)                                                                     |
+| iOS header mount | `packages/app/src/components/headers/menu-header.tsx`                                                  | +6                                                                             |
+| iOS store test   | `packages/app/src/stores/session-store.subscription-usage.test.ts`                                     | +8                                                                             |
+| QA flow          | `~/.claude/skills/ios-qa/flows/kikoro/02-subscriptions-tab.yaml`                                       | +50 (new)                                                                      |
+| Version          | `packages/app/package.json`                                                                            | 1.1.0 → 1.2.0                                                                  |
+| KIKORO_CHANGES   | This file                                                                                              | +this section                                                                  |
+
+### v3+ work still on the slate
+
+- Push notifications when a quota window drops below threshold (deferred from this redesign — explicit "just a glance" feature shape).
+- Time-series history / consumption graph.
+- Removing the deprecated dollar fields from `SubscriptionProviderCostSchema` (target: 2026-11, once floor pins kikoro >= 1.2.0).
+- Home Screen widget for ambient quota awareness.

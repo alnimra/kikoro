@@ -2082,15 +2082,80 @@ export const DaemonConfigChangedStatusPayloadSchema = z
   .passthrough();
 
 // COMPAT(codexbarUsage): added in kikoro 1.1.0 (2026-05). Carries a snapshot
-// of codexbar's per-provider cost data (mirrors `codexbar cost --format json`),
-// gated by server_info.features.codexbarUsage. All fields are optional and
-// passthrough so a future codexbar CLI shape change does not break clients.
-// Drop the gate when the floor pins kikoro >= 1.1.0.
+// of codexbar's per-provider data, gated by server_info.features.codexbarUsage.
+// All fields are optional and passthrough so a codexbar CLI shape change does
+// not break clients. Drop the gate when the floor pins kikoro >= 1.2.0.
+//
+// History:
+//   1.1.0 (2026-05-13): shipped with `codexbar cost --format json` — dollar
+//     totals (sessionCostUsd, last30DaysCostUsd, totals.*). Visually wrong
+//     per design feedback.
+//   1.2.0 (2026-05-14): switched data source to `codexbar usage --format
+//     json --provider all`. Added identity + primary/secondary/tertiary
+//     quota windows + extraWindows + credits. Dollar fields kept optional
+//     and deprecated; daemon no longer populates them but old clients still
+//     parse them. Remove dollar fields after 2026-11 (floor >= 1.2.0).
+export const QuotaWindowSchema = z
+  .object({
+    usedPercent: z.number().optional(),
+    windowMinutes: z.number().optional(),
+    resetsAt: z.string().optional(),
+    resetDescription: z.string().optional(),
+  })
+  .passthrough();
+
+export type QuotaWindow = z.infer<typeof QuotaWindowSchema>;
+
+export const SubscriptionExtraWindowSchema = z
+  .object({
+    id: z.string(),
+    title: z.string(),
+    window: QuotaWindowSchema,
+  })
+  .passthrough();
+
+export type SubscriptionExtraWindow = z.infer<typeof SubscriptionExtraWindowSchema>;
+
 export const SubscriptionProviderCostSchema = z
   .object({
     provider: z.string(),
     source: z.string().optional(),
     updatedAt: z.string().optional(),
+    cliVersion: z.string().optional(),
+
+    // Quota-window view (added 1.2.0). Populated from `codexbar usage`.
+    identity: z
+      .object({
+        accountEmail: z.string().optional(),
+        loginMethod: z.string().optional(),
+        providerId: z.string().optional(),
+      })
+      .passthrough()
+      .optional(),
+    primary: QuotaWindowSchema.optional(),
+    secondary: QuotaWindowSchema.optional(),
+    tertiary: QuotaWindowSchema.nullable().optional(),
+    extraWindows: z.array(SubscriptionExtraWindowSchema).optional(),
+    credits: z
+      .object({
+        remaining: z.number().optional(),
+      })
+      .passthrough()
+      .optional(),
+
+    // Per-provider error from the CLI (e.g. "No available fetch strategy for openai").
+    providerError: z
+      .object({
+        code: z.number().optional(),
+        kind: z.string().optional(),
+        message: z.string(),
+      })
+      .passthrough()
+      .optional(),
+
+    // DEPRECATED in 1.2.0 — kept .optional() for v1.1.0 client back-compat.
+    // The 1.2.0+ daemon does not populate these. Remove after 2026-11 when
+    // the floor pins kikoro >= 1.2.0.
     sessionTokens: z.number().optional(),
     sessionCostUsd: z.number().optional(),
     last30DaysTokens: z.number().optional(),
