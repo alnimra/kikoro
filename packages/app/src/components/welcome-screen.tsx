@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { resolveAppVersion } from "@/utils/app-version";
 import { formatVersionWithPrefix } from "@/desktop/updates/desktop-updates";
 import { buildHostRootRoute } from "@/utils/host-routes";
-import { PaseoLogo } from "@/components/icons/paseo-logo";
+import { KikoroLogo } from "@/components/icons/kikoro-logo";
 import { openExternalUrl } from "@/utils/open-external-url";
 import { isWeb, isNative } from "@/constants/platform";
 
@@ -178,7 +178,7 @@ export function WelcomeScreen({ onHostAdded }: WelcomeScreenProps) {
     [router],
   );
 
-  const handleOpenPaseoSite = useCallback(() => {
+  const handleOpenSetupSite = useCallback(() => {
     void openExternalUrl("https://paseo.sh");
   }, []);
 
@@ -262,13 +262,13 @@ export function WelcomeScreen({ onHostAdded }: WelcomeScreenProps) {
         testID="welcome-screen"
       >
         <View style={styles.content}>
-          <PaseoLogo size={96} />
+          <KikoroLogo size={96} />
           <View style={styles.copyBlock}>
-            <Text style={styles.title}>Welcome to Paseo</Text>
+            <Text style={styles.title}>Welcome to Kikoro</Text>
             <Text style={styles.subtitle}>Connect your computer to get started</Text>
             {isNative ? (
-              <Pressable style={styles.setupLink} onPress={handleOpenPaseoSite}>
-                <Text style={styles.setupLinkText}>paseo.sh</Text>
+              <Pressable style={styles.setupLink} onPress={handleOpenSetupSite}>
+                <Text style={styles.setupLinkText}>Kikoro setup</Text>
                 <ExternalLink size={14} color={theme.colors.accent} />
               </Pressable>
             ) : null}

@@ -1,0 +1,122 @@
+import Svg, { Circle, Path } from "react-native-svg";
+import { useUnistyles } from "react-native-unistyles";
+
+interface KikoroLogoProps {
+  size?: number;
+  color?: string;
+}
+
+export const KIKORO_LOGO_MASK_SVG =
+  "<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 1024 1024'><g fill='none' stroke='black' stroke-width='22' stroke-linecap='square' stroke-linejoin='miter'><path d='M382 184H642V228H582V286H740V456H800V370H844V654H800V568H740V738H582V796H642V840H382V796H442V738H284V568H224V654H180V370H224V456H284V286H442V228H382Z'/></g><g fill='none' stroke='black' stroke-width='18' stroke-linecap='round' stroke-linejoin='round'><path d='M512 278C537 319 579 312 604 341C579 350 551 365 512 398C473 365 445 350 420 341C445 312 487 319 512 278Z'/><path d='M512 746C537 705 579 712 604 683C579 674 551 659 512 626C473 659 445 674 420 683C445 712 487 705 512 746Z'/><path d='M278 512C319 487 312 445 341 420C350 445 365 473 398 512C365 551 350 579 341 604C312 579 319 537 278 512Z'/><path d='M746 512C705 487 712 445 683 420C674 445 659 473 626 512C659 551 674 579 683 604C712 579 705 537 746 512Z'/><path d='M346 346C392 357 417 321 455 327C443 350 434 382 438 432C388 428 356 437 333 449C327 411 357 392 346 346Z'/><path d='M678 346C632 357 607 321 569 327C581 350 590 382 586 432C636 428 668 437 691 449C697 411 667 392 678 346Z'/><path d='M346 678C392 667 417 703 455 697C443 674 434 642 438 592C388 596 356 587 333 575C327 613 357 632 346 678Z'/><path d='M678 678C632 667 607 703 569 697C581 674 590 642 586 592C636 596 668 587 691 575C697 613 667 632 678 678Z'/><circle cx='512' cy='512' r='182'/></g><g fill='none' stroke='black' stroke-width='18' stroke-linecap='square' stroke-linejoin='miter'><path d='M512 346L666 616H358Z'/><path d='M512 678L358 408H666Z'/><path d='M512 446L586 576H438Z'/><path d='M438 556H586'/></g><circle cx='512' cy='512' r='18' fill='black'/></svg>";
+
+export function KikoroLogo({ size = 64, color }: KikoroLogoProps) {
+  // Tiny leaf component: react-native-svg needs the theme color as a prop.
+  const { theme } = useUnistyles();
+  const stroke = color ?? theme.colors.foreground;
+
+  return (
+    <Svg width={size} height={size} viewBox="0 0 1024 1024" fill="none">
+      <Path
+        d="M382 184H642V228H582V286H740V456H800V370H844V654H800V568H740V738H582V796H642V840H382V796H442V738H284V568H224V654H180V370H224V456H284V286H442V228H382Z"
+        stroke={stroke}
+        strokeWidth={22}
+        strokeLinecap="square"
+        strokeLinejoin="miter"
+      />
+      <Path
+        d="M512 278C537 319 579 312 604 341C579 350 551 365 512 398C473 365 445 350 420 341C445 312 487 319 512 278Z"
+        stroke={stroke}
+        strokeWidth={18}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M512 746C537 705 579 712 604 683C579 674 551 659 512 626C473 659 445 674 420 683C445 712 487 705 512 746Z"
+        stroke={stroke}
+        strokeWidth={18}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M278 512C319 487 312 445 341 420C350 445 365 473 398 512C365 551 350 579 341 604C312 579 319 537 278 512Z"
+        stroke={stroke}
+        strokeWidth={18}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M746 512C705 487 712 445 683 420C674 445 659 473 626 512C659 551 674 579 683 604C712 579 705 537 746 512Z"
+        stroke={stroke}
+        strokeWidth={18}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M346 346C392 357 417 321 455 327C443 350 434 382 438 432C388 428 356 437 333 449C327 411 357 392 346 346Z"
+        stroke={stroke}
+        strokeWidth={18}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M678 346C632 357 607 321 569 327C581 350 590 382 586 432C636 428 668 437 691 449C697 411 667 392 678 346Z"
+        stroke={stroke}
+        strokeWidth={18}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M346 678C392 667 417 703 455 697C443 674 434 642 438 592C388 596 356 587 333 575C327 613 357 632 346 678Z"
+        stroke={stroke}
+        strokeWidth={18}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M678 678C632 667 607 703 569 697C581 674 590 642 586 592C636 596 668 587 691 575C697 613 667 632 678 678Z"
+        stroke={stroke}
+        strokeWidth={18}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Circle
+        cx={512}
+        cy={512}
+        r={182}
+        stroke={stroke}
+        strokeWidth={18}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M512 346L666 616H358Z"
+        stroke={stroke}
+        strokeWidth={18}
+        strokeLinecap="square"
+        strokeLinejoin="miter"
+      />
+      <Path
+        d="M512 678L358 408H666Z"
+        stroke={stroke}
+        strokeWidth={18}
+        strokeLinecap="square"
+        strokeLinejoin="miter"
+      />
+      <Path
+        d="M512 446L586 576H438Z"
+        stroke={stroke}
+        strokeWidth={18}
+        strokeLinecap="square"
+        strokeLinejoin="miter"
+      />
+      <Path
+        d="M438 556H586"
+        stroke={stroke}
+        strokeWidth={18}
+        strokeLinecap="square"
+        strokeLinejoin="miter"
+      />
+      <Circle cx={512} cy={512} r={18} fill={stroke} />
+    </Svg>
+  );
+}
