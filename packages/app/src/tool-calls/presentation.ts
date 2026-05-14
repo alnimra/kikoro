@@ -2,7 +2,11 @@ import type { ComponentType } from "react";
 import type { ToolCallDetail } from "@server/server/agent/agent-sdk-types";
 import type { ToolCallDisplayInput } from "@/utils/tool-call-display";
 import { buildToolCallDisplayModel } from "@/utils/tool-call-display";
-import { extractToolCallFilePath } from "@/utils/extract-tool-call-file-path";
+import {
+  extractToolCallFilePath,
+  extractToolCallFileRef,
+  isMarkdownPath,
+} from "@/utils/extract-tool-call-file-path";
 import {
   hasMeaningfulToolCallDetail,
   isPendingToolCallDetail,
@@ -30,6 +34,8 @@ export interface ToolCallPresentation {
   hasDetails: boolean;
   canOpenDetails: boolean;
   openFilePath: string | null;
+  /** Path to surface as an artifact chip, or null when no artifact applies. */
+  artifactPath: string | null;
   isPlan: boolean;
 }
 
@@ -65,6 +71,16 @@ export function buildToolCallPresentation(
   });
   const hasDetails = Boolean(input.error) || hasMeaningfulToolCallDetail(input.detail);
 
+  const fileRef = extractToolCallFileRef(input.detail);
+  // v1 wedge: surface markdown writes as artifacts. Reads stay as the
+  // hover-only open-file icon. Failed/canceled writes don't get a chip
+  // because the file likely doesn't exist.
+  const isCompletedStatus = input.status === "completed";
+  const artifactPath =
+    isCompletedStatus && fileRef?.intent === "write" && isMarkdownPath(fileRef.path)
+      ? fileRef.path
+      : null;
+
   return {
     displayName: displayModel.displayName,
     summary: displayModel.summary,
@@ -74,6 +90,7 @@ export function buildToolCallPresentation(
     hasDetails,
     canOpenDetails: hasDetails || isLoadingDetails,
     openFilePath: extractToolCallFilePath(input.detail),
+    artifactPath,
     isPlan: input.detail?.type === "plan",
   };
 }

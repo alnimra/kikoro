@@ -16,7 +16,9 @@ const r1 = ServerInfoStatusPayloadSchema.safeParse(oldDaemonPayload);
 console.log(
   "[1] OLD daemon → new client parse:",
   r1.success ? "PASS" : "FAIL",
-  r1.success ? `(features.codexbarUsage = ${r1.data.features?.codexbarUsage})` : r1.error?.issues?.[0]?.message,
+  r1.success
+    ? `(features.codexbarUsage = ${r1.data.features?.codexbarUsage})`
+    : r1.error?.issues?.[0]?.message,
 );
 
 // Case 2: new daemon (with codexbarUsage) — new client parses
@@ -31,7 +33,9 @@ const r2 = ServerInfoStatusPayloadSchema.safeParse(newDaemonPayload);
 console.log(
   "[2] NEW daemon → new client parse:",
   r2.success ? "PASS" : "FAIL",
-  r2.success ? `(features.codexbarUsage = ${r2.data.features?.codexbarUsage})` : r2.error?.issues?.[0]?.message,
+  r2.success
+    ? `(features.codexbarUsage = ${r2.data.features?.codexbarUsage})`
+    : r2.error?.issues?.[0]?.message,
 );
 
 // Case 3: subscription_usage_updated with future-extra fields (passthrough must survive)

@@ -67,6 +67,7 @@ import type { TodoEntry, UserMessageImageAttachment } from "@/types/stream";
 import type { AgentAttachment } from "@server/shared/messages";
 import type { ToolCallDetail } from "@server/server/agent/agent-sdk-types";
 import { buildToolCallPresentation } from "@/tool-calls/presentation";
+import { ArtifactChip } from "@/components/ui/artifact-chip";
 import { resolveToolCallIcon } from "@/utils/tool-call-icon";
 import {
   parseAssistantFileLink,
@@ -2954,6 +2955,14 @@ export const ToolCall = memo(function ToolCall({
     );
   }, [isMobile, effectiveDetail, presentation.errorText, presentation.isLoadingDetails]);
 
+  const artifactPath = presentation.artifactPath;
+  const handleArtifactPress = useMemo(() => {
+    if (!artifactPath || !onOpenFilePath) {
+      return undefined;
+    }
+    return () => onOpenFilePath(artifactPath);
+  }, [artifactPath, onOpenFilePath]);
+
   if (presentation.isPlan && effectiveDetail?.type === "plan") {
     return (
       <PlanCard
@@ -2966,21 +2975,26 @@ export const ToolCall = memo(function ToolCall({
   }
 
   return (
-    <ExpandableBadge
-      testID="tool-call-badge"
-      label={presentation.displayName}
-      secondaryLabel={presentation.summary}
-      icon={presentation.icon}
-      isExpanded={!isMobile && isExpanded}
-      onToggle={presentation.canOpenDetails ? handleToggle : undefined}
-      onOpenFile={handleOpenFile}
-      renderDetails={presentation.canOpenDetails && !isMobile ? renderDetails : undefined}
-      isLoading={status === "running" || status === "executing"}
-      isError={status === "failed"}
-      isLastInSequence={isLastInSequence}
-      disableOuterSpacing={disableOuterSpacing}
-      onDetailHoverChange={onInlineDetailsHoverChange}
-    />
+    <>
+      <ExpandableBadge
+        testID="tool-call-badge"
+        label={presentation.displayName}
+        secondaryLabel={presentation.summary}
+        icon={presentation.icon}
+        isExpanded={!isMobile && isExpanded}
+        onToggle={presentation.canOpenDetails ? handleToggle : undefined}
+        onOpenFile={handleOpenFile}
+        renderDetails={presentation.canOpenDetails && !isMobile ? renderDetails : undefined}
+        isLoading={status === "running" || status === "executing"}
+        isError={status === "failed"}
+        isLastInSequence={isLastInSequence}
+        disableOuterSpacing={disableOuterSpacing}
+        onDetailHoverChange={onInlineDetailsHoverChange}
+      />
+      {artifactPath && handleArtifactPress ? (
+        <ArtifactChip filename={artifactPath} onPress={handleArtifactPress} />
+      ) : null}
+    </>
   );
 }, areToolCallPropsEqual);
 
