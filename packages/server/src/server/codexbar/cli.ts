@@ -140,9 +140,23 @@ export async function fetchCodexbarUsage(
 
   const cliVersion = await fetchCodexbarVersion(binaryPath).catch(() => null);
 
-  const result = await runCommand(binaryPath, ["usage", "--format", "json", "--provider", "all"], {
-    timeoutMs,
-  });
+  // Force `--source cli` to avoid macOS Keychain ACL prompts. Default `auto`
+  // tries web first (Codex web dashboard / Claude.ai API), which requires
+  // reading Chrome's "Chrome Safe Storage" entry from the login keychain.
+  // That keychain access is gated per-caller-process: macOS does not honor
+  // "Always Allow" for spawned children of a long-running daemon, so every
+  // 60s poll cycle hangs on an interactive prompt the daemon can never
+  // answer → 60s timeout → "CodexBar timed out" on iOS. The `cli` source
+  // reads local Codex CLI / Claude CLI session files instead, which the
+  // daemon can read without any keychain ACL interaction. Slightly less
+  // rich than web (no extra rate windows like Claude's Sonnet sub-window
+  // come through the CLI path), but primary/secondary quota windows
+  // — the data the iOS UI renders — are populated from CLI source.
+  const result = await runCommand(
+    binaryPath,
+    ["usage", "--format", "json", "--provider", "all", "--source", "cli"],
+    { timeoutMs },
+  );
 
   if (result.timedOut) {
     logger?.warn({ binaryPath, timeoutMs }, "codexbar.cli.timeout");
