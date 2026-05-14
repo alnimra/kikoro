@@ -29,9 +29,25 @@ See [KIKORO_CHANGES.md](./KIKORO_CHANGES.md) for the full kikoro-vs-paseo diverg
 
 Paseo iterates fast. Kikoro pins paseo monthly to a known-good version rather than merging head weekly. See [KIKORO_CHANGES.md](./KIKORO_CHANGES.md) for the merge cadence and the `.gitattributes` rules that protect kikoro values from upstream overwrites.
 
+## What's shipped beyond paseo
+
+Features unique to kikoro, in order shipped:
+
+- **Codex + Claude subscription tracking (v1.1.0, v1.2.0)** — Settings → Subscriptions renders Session/Weekly quota bars per provider, with `% left`, reset countdowns, plan tier, and account. Always-visible header chip shows the lowest quota across providers, tappable into the screen. Powered by the daemon polling CodexBar.app's `CodexBarCLI usage --format json` and broadcasting over the existing WebSocket. Requires `CodexBar.app` installed on the Mac and a one-time keychain ACL grant for Chrome Safe Storage.
+
+See [KIKORO_CHANGES.md](./KIKORO_CHANGES.md) for the full per-version implementation notes.
+
 ## Future direction
 
-Eventually kikoro will add opinionated UX features paseo doesn't have (Kanban-style issue management, usage tracking, agent-delegated question answering, configurable approval gates). v1 (this state) is just the kikoro-themed paseo. Features ship one at a time.
+Planned opinionated UX features paseo doesn't have:
+
+- Kanban-style issue management with sub-issue spawning
+- Agent-delegated question answering
+- Configurable approval gates
+- Home Screen widget for at-a-glance subscription quotas
+- Bundling CodexBar.app's quota-fetching logic into `packages/desktop` (Electron) so only kikoro needs to be running on the Mac
+
+Features ship one at a time. See KIKORO_CHANGES.md for the most-recent ship.
 
 ## Acknowledgments
 
