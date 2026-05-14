@@ -26,7 +26,7 @@ This is the canonical list of how kikoro diverges from upstream `getpaseo/paseo`
 
 ### Versioning (packages/app/package.json `version` field)
 
-Paseo and kikoro ride independent version lines. Paseo's is `0.x.y` (currently `0.1.75`); kikoro continues the old kikoro `1.x.y` line (started at `1.0.0`, currently `1.0.1`). The version shown in TestFlight + App Store comes from `packages/app/package.json` via `app.config.js`'s `version: pkg.version` line; `eas.json` stores only the build number remotely (`appVersionSource: "remote"`).
+Paseo and kikoro ride independent version lines. Paseo's is `0.x.y`; kikoro continues the old kikoro `1.x.y` line (started at `1.0.0`, currently `1.2.0`). The version shown in TestFlight + App Store comes from `packages/app/package.json` via `app.config.js`'s `version: pkg.version` line; `eas.json` stores only the build number remotely (`appVersionSource: "remote"`).
 
 **Upstream-merge gotcha:** `packages/app/package.json` is NOT in `.gitattributes` `merge=ours` — we want to inherit paseo's dependency updates from this file (`react-native`, `expo-router`, etc.). The downside: a paseo version bump will overwrite kikoro's `version` field on merge. The smoke script (`scripts/smoke.sh`) catches this — it fails loudly if the version isn't on the `1.x` line. After every upstream merge, re-bump the version manually if smoke complains.
 
@@ -181,3 +181,22 @@ v1.1.0's `codexbarUsage` flag means "this daemon supports subscription tracking 
 - Time-series history / consumption graph.
 - Removing the deprecated dollar fields from `SubscriptionProviderCostSchema` (target: 2026-11, once floor pins kikoro >= 1.2.0).
 - Home Screen widget for ambient quota awareness.
+
+## v3.1 — Kikoro launch-screen branding patch (kikoro 1.2.0 build 20)
+
+This patch closes the visible-branding gap left after the native splash assets were replaced. The iOS launch-adjacent React Native screens now use the Kikoro mark and copy instead of inherited paseo branding.
+
+### What changed
+
+- Added `packages/app/src/components/icons/kikoro-logo.tsx`, a reusable React Native SVG mark with a web mask string for the shimmer splash.
+- Replaced `PaseoLogo` with `KikoroLogo` in `startup-splash-screen.tsx`, including the native masked shimmer, web shimmer mask, and error state.
+- Replaced `PaseoLogo` with `KikoroLogo` in `open-project-screen.tsx`, the empty project state shown in the user's screenshots.
+- Replaced `PaseoLogo` with `KikoroLogo` in `welcome-screen.tsx`, changed `Welcome to Paseo` to `Welcome to Kikoro`, and changed the visible setup link label from `paseo.sh` to `Kikoro setup` while preserving the underlying `https://paseo.sh` URL.
+- Updated Maestro's dev app IDs to `com.alnim.kikoro.debug` and changed the launch flow to assert `Welcome to Kikoro` for iOS/mobile QA.
+
+### Verification
+
+- `npm run format`
+- `npm run typecheck`
+- `npm run lint`
+- EAS TestFlight build submitted successfully on 2026-05-14: build `254bd61a-2c6b-42d6-8511-50da928f5210`, app version `1.2.0`, build number `20`.
