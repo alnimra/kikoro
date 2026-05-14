@@ -175,9 +175,30 @@ v1.1.0's `codexbarUsage` flag means "this daemon supports subscription tracking 
 | Version          | `packages/app/package.json`                                                                            | 1.1.0 → 1.2.0                                                                  |
 | KIKORO_CHANGES   | This file                                                                                              | +this section                                                                  |
 
+### Post-ship hotfixes (PR #3, #4, #5 — same-day after #2 merge)
+
+The 1.2.0 redesign shipped with three follow-up fixes that landed the same day to get the feature actually working on a real iPhone. None of these required a version bump (still kikoro 1.2.0); they shipped as JS via EAS Update on the staging channel.
+
+- **PR #3 `a5072caf` — `cli.ts` partial-success.** Discovered during on-phone verification: `CodexBarCLI usage --format json --provider all` exits non-zero on a typical Mac because 35+ providers report "not signed in" errors even when Codex + Claude succeed. The daemon's CLI wrapper was discarding stdout on non-zero exits, throwing away valid JSON. Fix: treat the run as a partial success when stdout parses as a JSON array of provider entries, regardless of exit code. Otherwise the screen would have stayed empty after the daemon swap.
+- **PR #4 `e7fadce1` — iOS serverId fallback.** Discovered when the user installed TestFlight build #16 and saw the header chip working (62%) but Settings → Subscriptions showing "Connect to a host" empty state. Root cause: `settings-screen.tsx` passed `serverId={localServerId}` where `useLocalDaemonServerId()` only returns a value in the Electron desktop app — on iOS/web it's always null. Fix: fall back to `anyOnlineServerId` (already computed in the same component for other sections). One line in `packages/app/src/screens/settings-screen.tsx`.
+- **PR #5 `6f891bdc` — `--source cli` flag.** Originally framed as a fix for the macOS keychain ACL prompt that blocks CodexBarCLI on every daemon poll. On verification, `--source cli` does NOT avoid the keychain access — CodexBarCLI touches Chrome Safe Storage on startup regardless of the source flag. The PR is still correct (CLI source is the right default for the daemon — no browser cookies required, more deterministic), but the keychain unblock had to come from the user's side.
+
+### Required one-time keychain ACL setup per Mac
+
+CodexBarCLI reads Chrome's encrypted cookie storage from the macOS keychain (`Chrome Safe Storage` entry). Out of the box, every daemon poll triggers a keychain prompt that interactively blocks the helper; "Always Allow" usually doesn't stick because the daemon respawns the helper as a different process. The reliable fix is per-Mac, one-time:
+
+1. Open Keychain Access.
+2. Search for "Chrome Safe Storage".
+3. Double-click the entry → Access Control tab.
+4. Tick **"Allow all applications to access this item"** (simplest), OR click **+** and add `/Applications/CodexBar.app/Contents/Helpers/CodexBarCLI` specifically (use ⌘⇧G in the file picker to navigate into the .app bundle).
+5. Save (re-enter login password).
+
+Without this, the Subscriptions screen will show "CodexBar timed out. Try again in a moment." instead of real quota bars. The daemon-side fix can't bypass this; it's a macOS-level trust grant.
+
 ### v3+ work still on the slate
 
 - Push notifications when a quota window drops below threshold (deferred from this redesign — explicit "just a glance" feature shape).
 - Time-series history / consumption graph.
 - Removing the deprecated dollar fields from `SubscriptionProviderCostSchema` (target: 2026-11, once floor pins kikoro >= 1.2.0).
 - Home Screen widget for ambient quota awareness.
+- **Bundle CodexBar's quota-fetching logic into `packages/desktop` (Electron)** — eliminates the dual-app requirement (kikoro Mac app + CodexBar.app menubar app). Codexbar is open source; port the relevant logic. Pros: one Mac app to run; auth surface stays on Mac. Cons: real implementation work, ChatGPT/Anthropic web cookie handling moves into kikoro. Tracked in `~/.gstack/projects/alnimra-kikoro/main-kikoro-subscriptions-redesign-followup-20260513-225500.md`.

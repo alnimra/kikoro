@@ -7,5 +7,6 @@ packages/app/assets/images/favicon.png merge=ours
 packages/app/assets/images/android-icon-foreground.png merge=ours
 KIKORO.md merge=ours
 KIKORO_CHANGES.md merge=ours
+AGENTS.md merge=ours
 scripts/smoke.sh merge=ours
 .gitattributes merge=ours
