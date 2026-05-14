@@ -76,6 +76,77 @@ describe("tool-call presentation", () => {
     });
   });
 
+  it("surfaces an artifactPath for completed markdown writes", () => {
+    const presentation = buildToolCallPresentation({
+      toolName: "Write",
+      status: "completed",
+      error: null,
+      detail: {
+        type: "write",
+        filePath: "/tmp/repo/docs/retro.md",
+        content: "# Retro",
+      },
+      resolveIcon: fakeResolveIcon,
+    });
+    expect(presentation.artifactPath).toBe("/tmp/repo/docs/retro.md");
+  });
+
+  it("surfaces an artifactPath for completed bash redirects to .md", () => {
+    const presentation = buildToolCallPresentation({
+      toolName: "Bash",
+      status: "completed",
+      error: null,
+      detail: {
+        type: "shell",
+        command: "echo hi > /tmp/notes.md",
+      },
+      resolveIcon: fakeResolveIcon,
+    });
+    expect(presentation.artifactPath).toBe("/tmp/notes.md");
+  });
+
+  it("does not surface an artifact for non-markdown writes", () => {
+    const presentation = buildToolCallPresentation({
+      toolName: "Write",
+      status: "completed",
+      error: null,
+      detail: { type: "write", filePath: "/tmp/x.ts", content: "" },
+      resolveIcon: fakeResolveIcon,
+    });
+    expect(presentation.artifactPath).toBeNull();
+  });
+
+  it("does not surface an artifact for markdown reads", () => {
+    const presentation = buildToolCallPresentation({
+      toolName: "read_file",
+      status: "completed",
+      error: null,
+      detail: { type: "read", filePath: "/tmp/r.md", content: "" },
+      resolveIcon: fakeResolveIcon,
+    });
+    expect(presentation.artifactPath).toBeNull();
+  });
+
+  it("does not surface an artifact for failed or running writes", () => {
+    const running = buildToolCallPresentation({
+      toolName: "Write",
+      status: "running",
+      error: null,
+      detail: { type: "write", filePath: "/tmp/r.md", content: "" },
+      resolveIcon: fakeResolveIcon,
+    });
+    expect(running.artifactPath).toBeNull();
+
+    const failed = buildToolCallPresentation({
+      toolName: "Write",
+      status: "failed",
+      error: new Error("nope"),
+      detail: { type: "write", filePath: "/tmp/r.md", content: "" },
+      resolveIcon: fakeResolveIcon,
+    });
+    expect(failed.artifactPath).toBeNull();
+  });
+
   it("keeps plan calls out of the expandable badge path", () => {
     const presentation = buildToolCallPresentation({
       toolName: "ExitPlanMode",
