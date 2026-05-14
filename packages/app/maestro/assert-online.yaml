@@ -1,4 +1,4 @@
-appId: sh.paseo
+appId: com.alnim.kikoro.debug
 ---
 - runFlow:
     when:

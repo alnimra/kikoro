@@ -4,12 +4,14 @@
 
 Controlled by `APP_VARIANT` in `packages/app/app.config.js` (vanilla Expo, no custom Gradle plugin):
 
-| Variant       | App name    | Package ID       |
-| ------------- | ----------- | ---------------- |
-| `production`  | Paseo       | `sh.paseo`       |
-| `development` | Paseo Debug | `sh.paseo.debug` |
+| Variant       | App name     | Package ID               |
+| ------------- | ------------ | ------------------------ |
+| `production`  | Kikoro       | `com.alnim.kikoro`       |
+| `development` | Kikoro Debug | `com.alnim.kikoro.debug` |
 
-EAS profiles: `development`, `production`, and `production-apk` in `packages/app/eas.json`.
+EAS profiles: `development`, `production`, `production-apk`, and iOS-only `testflight` in `packages/app/eas.json`.
+
+Kikoro's current release path is iOS TestFlight. The Android commands below are kept working as local build references, but Android is not the current ship target.
 
 `development` uses Android `debug`.
 
@@ -50,6 +52,8 @@ Stable tag pushes like `v0.1.0` trigger:
 
 - `packages/app/.eas/workflows/release-mobile.yml` on Expo servers (iOS + Android build + submit)
 - `.github/workflows/android-apk-release.yml` on GitHub Actions (APK asset on GitHub Release)
+
+Pushes to `main` that touch the app or its workspace dependencies also trigger `packages/app/.eas/workflows/testflight-on-main.yml`, which builds the `testflight` profile and submits to TestFlight for Kikoro's App Store Connect app.
 
 Beta tags like `v0.1.1-beta.1` only trigger the GitHub APK workflow. They publish a GitHub prerelease APK for testing and do not submit to the stores.
 
