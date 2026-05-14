@@ -2,7 +2,10 @@ import { describe, it, expect } from "vitest";
 import {
   extractToolCallFilePath,
   extractToolCallFileRef,
+  isImagePath,
   isMarkdownPath,
+  isPreviewablePath,
+  isVideoPath,
 } from "./extract-tool-call-file-path";
 
 describe("extractToolCallFilePath", () => {
@@ -106,10 +109,67 @@ describe("isMarkdownPath", () => {
     ["a/b/c.md", true],
     ["a.md.txt", false],
     ["foo.ts", false],
+    ["foo.png", false],
     ["", false],
     [null, false],
     [undefined, false],
   ])("%s -> %s", (input, expected) => {
     expect(isMarkdownPath(input as string | null | undefined)).toBe(expected);
+  });
+});
+
+describe("isImagePath", () => {
+  it.each([
+    ["screenshot.png", true],
+    ["photo.JPG", true],
+    ["pic.jpeg", true],
+    ["animated.gif", true],
+    ["modern.webp", true],
+    ["icon.svg", true],
+    ["a/b/c.png", true],
+    ["foo.md", false],
+    ["foo.mp4", false],
+    ["foo.png.bak", false],
+    ["", false],
+    [null, false],
+    [undefined, false],
+  ])("%s -> %s", (input, expected) => {
+    expect(isImagePath(input as string | null | undefined)).toBe(expected);
+  });
+});
+
+describe("isVideoPath", () => {
+  it.each([
+    ["clip.mp4", true],
+    ["movie.mov", true],
+    ["screen.webm", true],
+    ["short.m4v", true],
+    ["CLIP.MP4", true],
+    ["foo.md", false],
+    ["foo.png", false],
+    ["foo.mp4.bak", false],
+    ["", false],
+    [null, false],
+    [undefined, false],
+  ])("%s -> %s", (input, expected) => {
+    expect(isVideoPath(input as string | null | undefined)).toBe(expected);
+  });
+});
+
+describe("isPreviewablePath", () => {
+  it.each([
+    ["retro.md", true],
+    ["screenshot.png", true],
+    ["video.mp4", true],
+    ["thing.markdown", true],
+    ["pic.svg", true],
+    ["foo.ts", false],
+    ["foo.yaml", false],
+    ["foo.json", false],
+    ["", false],
+    [null, false],
+    [undefined, false],
+  ])("%s -> %s", (input, expected) => {
+    expect(isPreviewablePath(input as string | null | undefined)).toBe(expected);
   });
 });

@@ -195,6 +195,10 @@ export function extractToolCallFileRef(detail: ToolCallDetail | undefined): Tool
 }
 
 const MARKDOWN_EXTENSIONS = [".md", ".markdown"];
+const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"];
+const VIDEO_EXTENSIONS = [".mp4", ".mov", ".webm", ".m4v"];
+
+const PREVIEWABLE_EXTENSIONS = [...MARKDOWN_EXTENSIONS, ...IMAGE_EXTENSIONS, ...VIDEO_EXTENSIONS];
 
 export function isMarkdownPath(path: string | null | undefined): boolean {
   if (!path) {
@@ -202,4 +206,28 @@ export function isMarkdownPath(path: string | null | undefined): boolean {
   }
   const lower = path.toLowerCase();
   return MARKDOWN_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
+
+export function isImagePath(path: string | null | undefined): boolean {
+  if (!path) {
+    return false;
+  }
+  const lower = path.toLowerCase();
+  return IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
+
+export function isVideoPath(path: string | null | undefined): boolean {
+  if (!path) {
+    return false;
+  }
+  const lower = path.toLowerCase();
+  return VIDEO_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
+
+export function isPreviewablePath(path: string | null | undefined): boolean {
+  if (!path) {
+    return false;
+  }
+  const lower = path.toLowerCase();
+  return PREVIEWABLE_EXTENSIONS.some((ext) => lower.endsWith(ext));
 }
