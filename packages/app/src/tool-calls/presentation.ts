@@ -5,7 +5,7 @@ import { buildToolCallDisplayModel } from "@/utils/tool-call-display";
 import {
   extractToolCallFilePath,
   extractToolCallFileRef,
-  isMarkdownPath,
+  isPreviewablePath,
 } from "@/utils/extract-tool-call-file-path";
 import {
   hasMeaningfulToolCallDetail,
@@ -72,12 +72,12 @@ export function buildToolCallPresentation(
   const hasDetails = Boolean(input.error) || hasMeaningfulToolCallDetail(input.detail);
 
   const fileRef = extractToolCallFileRef(input.detail);
-  // v1 wedge: surface markdown writes as artifacts. Reads stay as the
-  // hover-only open-file icon. Failed/canceled writes don't get a chip
-  // because the file likely doesn't exist.
+  // Surface previewable writes as artifact chips: markdown, images, video.
+  // Reads stay as the hover-only open-file icon. Failed/canceled writes don't
+  // get a chip because the file likely doesn't exist.
   const isCompletedStatus = input.status === "completed";
   const artifactPath =
-    isCompletedStatus && fileRef?.intent === "write" && isMarkdownPath(fileRef.path)
+    isCompletedStatus && fileRef?.intent === "write" && isPreviewablePath(fileRef.path)
       ? fileRef.path
       : null;
 

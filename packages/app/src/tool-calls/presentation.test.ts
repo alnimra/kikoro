@@ -105,6 +105,42 @@ describe("tool-call presentation", () => {
     expect(presentation.artifactPath).toBe("/tmp/notes.md");
   });
 
+  it("surfaces an artifactPath for completed image writes (.png)", () => {
+    const presentation = buildToolCallPresentation({
+      toolName: "Write",
+      status: "completed",
+      error: null,
+      detail: { type: "write", filePath: "/tmp/repo/screenshot.png", content: "" },
+      resolveIcon: fakeResolveIcon,
+    });
+    expect(presentation.artifactPath).toBe("/tmp/repo/screenshot.png");
+  });
+
+  it("surfaces an artifactPath for completed video writes (.mp4)", () => {
+    const presentation = buildToolCallPresentation({
+      toolName: "Write",
+      status: "completed",
+      error: null,
+      detail: { type: "write", filePath: "/tmp/repo/demo.mp4", content: "" },
+      resolveIcon: fakeResolveIcon,
+    });
+    expect(presentation.artifactPath).toBe("/tmp/repo/demo.mp4");
+  });
+
+  it("surfaces an artifactPath for bash redirect to .png", () => {
+    const presentation = buildToolCallPresentation({
+      toolName: "Bash",
+      status: "completed",
+      error: null,
+      detail: {
+        type: "shell",
+        command: "screencapture /tmp/cap.png && echo done > /tmp/cap.png",
+      },
+      resolveIcon: fakeResolveIcon,
+    });
+    expect(presentation.artifactPath).toBe("/tmp/cap.png");
+  });
+
   it("does not surface an artifact for non-markdown writes", () => {
     const presentation = buildToolCallPresentation({
       toolName: "Write",
